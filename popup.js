@@ -133,7 +133,7 @@ function updateTableHeaders() {
     const lang = currentLang || 'en';
     const headers = {
         links: [translations[lang].tableHeaderLinkText || 'Link Text', translations[lang].tableHeaderUrl || 'URL', translations[lang].tableHeaderNofollow || 'Nofollow', translations[lang].tableHeaderLinkStatus || 'Status'],
-        images: [translations[lang].tableHeaderImgSrc || 'Source (URL)', translations[lang].tableHeaderImgAlt || 'Alt Text', translations[lang].tableHeaderImgDim || 'Dimensions (WxH)']
+        images: [translations[lang].tableHeaderImgSrc || 'Source (URL)', translations[lang].tableHeaderImgAlt || 'Alt Text', translations[lang].tableHeaderImgDim || 'Dimensions (WxH)', translations[lang].tableHeaderImgFormat || 'Format', translations[lang].tableHeaderImgSize || 'Est. Size']
     };
     document.querySelectorAll('#tab-links table thead tr').forEach(tr => { tr.querySelectorAll('th').forEach((th, index) => { if (headers.links[index]) th.textContent = headers.links[index]; }); });
     document.querySelectorAll('#tab-images table thead tr').forEach(tr => { tr.querySelectorAll('th').forEach((th, index) => { if (headers.images[index]) th.textContent = headers.images[index]; }); });
@@ -522,6 +522,7 @@ function populateLinksTab(data) {
 
 // Link Analytics Functions
 function populateLinkAnalytics(allLinks, externalLinks) {
+    console.log('[SEO Analyzer] Populating Link Analytics, allLinks:', allLinks.length, 'externalLinks:', externalLinks.length);
     populateFollowNofollowRatio(allLinks);
     populateAnchorTextDistribution(allLinks);
     populateDomainDiversity(externalLinks);
@@ -534,7 +535,12 @@ function populateFollowNofollowRatio(links) {
     const followCount = document.getElementById('follow-count');
     const nofollowCount = document.getElementById('nofollow-count');
     
-    if (!followBar || !nofollowBar || !followCount || !nofollowCount) return;
+    console.log('[SEO Analyzer] populateFollowNofollowRatio - elements found:', !!followBar, !!nofollowBar, !!followCount, !!nofollowCount);
+    
+    if (!followBar || !nofollowBar || !followCount || !nofollowCount) {
+        console.warn('[SEO Analyzer] Follow/Nofollow elements not found!');
+        return;
+    }
     
     let follow = 0, nofollow = 0;
     links.forEach(link => {
@@ -718,13 +724,258 @@ function updateLinkStatusUI(url, status, error = null) {
     });
 }
 function populateImagesTab(data) {
-    const contentDiv = document.getElementById('image-analysis-content'); if (!contentDiv) return; contentDiv.innerHTML = '';
-    if (data.images && data.images.length > 0) {
-        removeEmptyTableMessage(contentDiv); const tableContainer = document.createElement('div'); tableContainer.className = 'table-container'; const table = document.createElement('table'); table.innerHTML = `<caption>${translations[currentLang].imagesHeadingTitle || 'Image Analysis'} (${data.images.length})</caption><thead><tr><th></th><th></th><th></th></tr></thead><tbody></tbody>`; const tbody = table.querySelector('tbody');
-        data.images.forEach(image => { const row = tbody.insertRow(); row.classList.add('clickable-item'); row.dataset.tagName = image.tagName; row.dataset.elementIndex = image.elementIndex; const dimensions = (image.width && image.height) ? `${image.width} x ${image.height}` : 'N/A'; const altTextHtml = image.alt ? safeText(image.alt) : `<span class="missing-alt">${translations[currentLang].imagesAltMissing || 'Missing'}</span>`; const imgSrc = image.src ? `<a href="${safeUrl(image.src)}" title="${safeText(image.src)}" target="_blank" rel="noopener noreferrer">${safeText(image.src)}</a>` : 'N/A'; row.innerHTML = `<td>${imgSrc}</td><td>${altTextHtml}</td><td>${safeText(dimensions)}</td>`; const imgPreview = document.createElement('img'); imgPreview.src = safeUrl(image.src); imgPreview.alt = 'Preview'; imgPreview.className = 'preview'; imgPreview.onerror = function () { this.style.display = 'none'; }; if (row.cells[0]) { row.cells[0].appendChild(imgPreview); } });
-        tableContainer.appendChild(table); contentDiv.appendChild(tableContainer); updateTableHeaders();
+    const contentDiv = document.getElementById('image-analysis-content'); 
+    if (!contentDiv) return; 
+    contentDiv.innerHTML = '';
+    
+    const images = data.images || [];
+    
+    // Populate Image Analytics
+    populateImageAnalytics(images);
+    
+    if (images.length > 0) {
+        removeEmptyTableMessage(contentDiv); 
+        const tableContainer = document.createElement('div'); 
+        tableContainer.className = 'table-container'; 
+        const table = document.createElement('table'); 
+        table.innerHTML = `<caption>${translations[currentLang].imagesHeadingTitle || 'Image Analysis'} (${images.length})</caption><thead><tr><th></th><th></th><th></th><th></th><th></th></tr></thead><tbody></tbody>`; 
+        const tbody = table.querySelector('tbody');
+        
+        images.forEach(image => { 
+            const row = tbody.insertRow(); 
+            row.classList.add('clickable-item'); 
+            row.dataset.tagName = image.tagName; 
+            row.dataset.elementIndex = image.elementIndex; 
+            
+            const dimensions = (image.width && image.height) ? `${image.width} x ${image.height}` : 'N/A'; 
+            const altTextHtml = image.alt ? safeText(image.alt) : `<span class="missing-alt">${translations[currentLang].imagesAltMissing || 'Missing'}</span>`; 
+            const imgSrc = image.src ? `<a href="${safeUrl(image.src)}" title="${safeText(image.src)}" target="_blank" rel="noopener noreferrer">${truncateUrl(image.src, 40)}</a>` : 'N/A';
+            
+            // Format badge
+            const formatClass = ['webp', 'avif'].includes(image.format) ? 'format-modern' : (image.format === 'unknown' ? 'format-unknown' : 'format-legacy');
+            const formatBadge = `<span class="format-badge ${formatClass}">${image.format.toUpperCase()}</span>`;
+            
+            // Size estimate
+            const sizeText = image.estimatedSize ? formatFileSize(image.estimatedSize) : 'N/A';
+            
+            row.innerHTML = `<td>${imgSrc}</td><td>${altTextHtml}</td><td>${safeText(dimensions)}</td><td>${formatBadge}</td><td>${sizeText}</td>`; 
+            
+            const imgPreview = document.createElement('img'); 
+            imgPreview.src = safeUrl(image.src); 
+            imgPreview.alt = 'Preview'; 
+            imgPreview.className = 'preview'; 
+            imgPreview.onerror = function () { this.style.display = 'none'; }; 
+            if (row.cells[0]) { row.cells[0].appendChild(imgPreview); } 
+        });
+        
+        tableContainer.appendChild(table); 
+        contentDiv.appendChild(tableContainer); 
+        updateTableHeaders();
     }
-    else { addEmptyTableMessage(contentDiv, 'imagesNoneFound'); }
+    else { 
+        addEmptyTableMessage(contentDiv, 'imagesNoneFound'); 
+    }
+}
+
+// Helper function to format file size
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+// Helper to truncate URL for display
+function truncateUrl(url, maxLen) {
+    if (!url || url.length <= maxLen) return safeText(url);
+    const filename = url.split('/').pop().split('?')[0];
+    if (filename.length <= maxLen) return safeText(filename);
+    return safeText(filename.substring(0, maxLen - 3) + '...');
+}
+
+// Image Analytics Functions
+function populateImageAnalytics(images) {
+    populateImageSummary(images);
+    populateFormatDistribution(images);
+    populateLazyLoadingStats(images);
+    populateClsImpact(images);
+    populateSrcsetStats(images);
+}
+
+// Image Summary Stats
+function populateImageSummary(images) {
+    const totalEl = document.getElementById('img-total-count');
+    const missingAltEl = document.getElementById('img-missing-alt');
+    const estSizeEl = document.getElementById('img-estimated-size');
+    
+    if (!totalEl || !missingAltEl || !estSizeEl) return;
+    
+    const total = images.length;
+    const missingAlt = images.filter(img => !img.alt).length;
+    const totalSize = images.reduce((sum, img) => sum + (img.estimatedSize || 0), 0);
+    
+    totalEl.textContent = total;
+    missingAltEl.textContent = missingAlt;
+    missingAltEl.className = missingAlt > 0 ? 'warning' : 'good';
+    estSizeEl.textContent = formatFileSize(totalSize);
+}
+
+// Format Distribution
+function populateFormatDistribution(images) {
+    const chartContainer = document.getElementById('image-format-chart');
+    const warningContainer = document.getElementById('image-format-warning');
+    
+    if (!chartContainer || !warningContainer) return;
+    
+    chartContainer.innerHTML = '';
+    warningContainer.innerHTML = '';
+    warningContainer.classList.add('hidden');
+    
+    if (images.length === 0) {
+        chartContainer.innerHTML = `<p class="no-data">${t('imgNoImages')}</p>`;
+        return;
+    }
+    
+    // Count formats
+    const formatCounts = {};
+    images.forEach(img => {
+        const fmt = img.format || 'unknown';
+        formatCounts[fmt] = (formatCounts[fmt] || 0) + 1;
+    });
+    
+    // Check for modern format usage
+    const modernCount = (formatCounts['webp'] || 0) + (formatCounts['avif'] || 0);
+    const legacyCount = (formatCounts['jpg'] || 0) + (formatCounts['png'] || 0) + (formatCounts['gif'] || 0);
+    
+    if (legacyCount > 0 && modernCount === 0) {
+        warningContainer.classList.remove('hidden');
+        warningContainer.innerHTML = `<span class="warning-icon">⚠️</span> ${t('imgNoModernFormats')}`;
+    } else if (legacyCount > modernCount && images.length > 3) {
+        warningContainer.classList.remove('hidden');
+        warningContainer.innerHTML = `<span class="warning-icon">💡</span> ${t('imgConsiderModernFormats')}`;
+    }
+    
+    // Sort by count
+    const sorted = Object.entries(formatCounts).sort((a, b) => b[1] - a[1]);
+    const maxCount = sorted[0][1];
+    
+    const formatColors = {
+        'webp': '#22c55e',
+        'avif': '#10b981',
+        'svg': '#8b5cf6',
+        'jpg': '#f59e0b',
+        'jpeg': '#f59e0b',
+        'png': '#3b82f6',
+        'gif': '#ec4899',
+        'ico': '#6b7280',
+        'unknown': '#9ca3af'
+    };
+    
+    sorted.forEach(([format, count]) => {
+        const pct = ((count / images.length) * 100).toFixed(1);
+        const barWidth = (count / maxCount) * 100;
+        const color = formatColors[format] || '#6b7280';
+        
+        const item = document.createElement('div');
+        item.className = 'format-item';
+        item.innerHTML = `
+            <div class="format-label">${format.toUpperCase()}</div>
+            <div class="format-bar-container">
+                <div class="format-bar" style="width: ${barWidth}%; background: ${color}"></div>
+            </div>
+            <div class="format-stats">${count} (${pct}%)</div>
+        `;
+        chartContainer.appendChild(item);
+    });
+}
+
+// Lazy Loading Stats
+function populateLazyLoadingStats(images) {
+    const lazyYesBar = document.getElementById('lazy-yes-bar');
+    const lazyNoBar = document.getElementById('lazy-no-bar');
+    const lazyYesCount = document.getElementById('lazy-yes-count');
+    const lazyNoCount = document.getElementById('lazy-no-count');
+    const recommendationEl = document.getElementById('lazy-recommendation');
+    
+    if (!lazyYesBar || !lazyNoBar || !lazyYesCount || !lazyNoCount) return;
+    
+    const withLazy = images.filter(img => img.hasLazyLoading).length;
+    const withoutLazy = images.length - withLazy;
+    
+    const total = images.length;
+    const lazyPct = total > 0 ? (withLazy / total * 100) : 0;
+    const noLazyPct = total > 0 ? (withoutLazy / total * 100) : 0;
+    
+    lazyYesBar.style.width = lazyPct + '%';
+    lazyNoBar.style.width = noLazyPct + '%';
+    lazyYesCount.textContent = withLazy;
+    lazyNoCount.textContent = withoutLazy;
+    
+    // Recommendation
+    if (recommendationEl) {
+        if (withoutLazy > 0 && total > 3) {
+            recommendationEl.textContent = t('imgLazyRecommendation', {count: withoutLazy});
+            recommendationEl.className = 'recommendation-text warning';
+        } else if (withLazy === total && total > 0) {
+            recommendationEl.textContent = t('imgLazyAllGood');
+            recommendationEl.className = 'recommendation-text good';
+        } else {
+            recommendationEl.textContent = '';
+        }
+    }
+}
+
+// CLS Impact (Width/Height Attributes)
+function populateClsImpact(images) {
+    const withDimEl = document.getElementById('img-with-dimensions');
+    const withoutDimEl = document.getElementById('img-without-dimensions');
+    const warningEl = document.getElementById('cls-warning');
+    
+    if (!withDimEl || !withoutDimEl) return;
+    
+    const withDimensions = images.filter(img => img.hasWidthAttr && img.hasHeightAttr).length;
+    const withoutDimensions = images.length - withDimensions;
+    
+    withDimEl.textContent = withDimensions;
+    withDimEl.className = withDimensions > 0 ? 'good' : '';
+    withoutDimEl.textContent = withoutDimensions;
+    withoutDimEl.className = withoutDimensions > 0 ? 'warning' : 'good';
+    
+    if (warningEl) {
+        if (withoutDimensions > 0) {
+            warningEl.classList.remove('hidden');
+            warningEl.innerHTML = `<span class="warning-icon">⚠️</span> ${t('imgClsWarning', {count: withoutDimensions})}`;
+        } else {
+            warningEl.classList.add('hidden');
+        }
+    }
+}
+
+// Responsive Images (srcset)
+function populateSrcsetStats(images) {
+    const withSrcsetEl = document.getElementById('img-with-srcset');
+    const withoutSrcsetEl = document.getElementById('img-without-srcset');
+    const recommendationEl = document.getElementById('srcset-recommendation');
+    
+    if (!withSrcsetEl || !withoutSrcsetEl) return;
+    
+    const withSrcset = images.filter(img => img.hasSrcset).length;
+    const withoutSrcset = images.length - withSrcset;
+    
+    withSrcsetEl.textContent = withSrcset;
+    withSrcsetEl.className = withSrcset > 0 ? 'good' : '';
+    withoutSrcsetEl.textContent = withoutSrcset;
+    
+    if (recommendationEl) {
+        if (withoutSrcset > 0 && images.length > 3) {
+            recommendationEl.textContent = t('imgSrcsetRecommendation', {count: withoutSrcset});
+            recommendationEl.className = 'recommendation-text';
+        } else if (withSrcset === images.length && images.length > 0) {
+            recommendationEl.textContent = t('imgSrcsetAllGood');
+            recommendationEl.className = 'recommendation-text good';
+        } else {
+            recommendationEl.textContent = '';
+        }
+    }
 }
 function populateSocialTab(data) {
     const ogDiv = document.getElementById('og-tags'); const twitterDiv = document.getElementById('twitter-tags'); const ogStatusEl = document.getElementById('og-status'); const twitterStatusEl = document.getElementById('twitter-status');

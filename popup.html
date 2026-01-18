@@ -184,10 +184,47 @@
                     </div>
                     <div id="link-buttons"><button id="crawl-links-btn" class="tool-link"
                             title="Check HTTP status for all links (can take time)"></button><button
-                            id="export-links-btn" class="tool-link" data-lang-key="exportLinksButton"
-                            title="Export link data to a text file"><span class="lucide-icon"
-                                aria-hidden="true">download</span> </button></div>
+                            id="export-links-btn" class="tool-link" data-lang-key="exportLinksCSVButton"
+                            title="Export link data to a CSV file">📥 </button></div>
                 </div>
+
+                <!-- Link Analytics Section -->
+                <div id="link-analytics" class="link-analytics-section">
+                    <h3 data-lang-key="linkAnalyticsTitle">Link Analytics</h3>
+                    
+                    <!-- Follow/Nofollow Ratio -->
+                    <div class="analytics-card">
+                        <h4 data-lang-key="followNofollowTitle">Follow / Nofollow Ratio</h4>
+                        <div id="follow-nofollow-chart" class="ratio-chart">
+                            <div class="ratio-bar">
+                                <div id="follow-bar" class="bar-segment follow" style="width: 0%"></div>
+                                <div id="nofollow-bar" class="bar-segment nofollow" style="width: 0%"></div>
+                            </div>
+                            <div class="ratio-legend">
+                                <span class="legend-item"><span class="legend-color follow"></span> <span data-lang-key="followLabel">Follow</span>: <strong id="follow-count">0</strong></span>
+                                <span class="legend-item"><span class="legend-color nofollow"></span> <span data-lang-key="nofollowLabel">Nofollow</span>: <strong id="nofollow-count">0</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Anchor Text Distribution -->
+                    <div class="analytics-card">
+                        <h4 data-lang-key="anchorTextTitle">Anchor Text Distribution</h4>
+                        <div id="anchor-text-warning" class="anchor-warning hidden"></div>
+                        <div id="anchor-text-chart" class="anchor-chart"></div>
+                    </div>
+
+                    <!-- Outbound Domain Diversity -->
+                    <div class="analytics-card">
+                        <h4 data-lang-key="domainDiversityTitle">Outbound Domain Diversity</h4>
+                        <div id="domain-diversity-stats" class="diversity-stats">
+                            <span><span data-lang-key="uniqueDomainsLabel">Unique Domains</span>: <strong id="unique-domains-count">0</strong></span>
+                            <span><span data-lang-key="externalLinksLabel">External Links</span>: <strong id="external-for-diversity">0</strong></span>
+                        </div>
+                        <div id="domain-list" class="domain-list"></div>
+                    </div>
+                </div>
+
                 <div id="link-analysis-content">
                     <div id="internal-links-container" class="link-category-container"></div>
                     <div id="external-links-container" class="link-category-container"></div>
@@ -196,6 +233,76 @@
             </div>
             <div id="tab-images" class="tab-content">
                 <h2 data-lang-key="imagesHeadingTitle">Image Analysis</h2>
+                
+                <!-- Image Analytics Section -->
+                <div id="image-analytics" class="image-analytics-section">
+                    <h3 data-lang-key="imageAnalyticsTitle">Image Analytics</h3>
+                    
+                    <!-- Image Summary Stats -->
+                    <div class="analytics-card">
+                        <h4 data-lang-key="imageSummaryTitle">Summary</h4>
+                        <div id="image-summary-stats" class="image-stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-label" data-lang-key="imgTotalCount">Total Images</span>
+                                <strong id="img-total-count">0</strong>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label" data-lang-key="imgMissingAlt">Missing Alt</span>
+                                <strong id="img-missing-alt" class="warning">0</strong>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label" data-lang-key="imgEstimatedSize">Est. Total Size</span>
+                                <strong id="img-estimated-size">0 KB</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Format Distribution -->
+                    <div class="analytics-card">
+                        <h4 data-lang-key="imageFormatTitle">Format Distribution</h4>
+                        <div id="image-format-warning" class="format-warning hidden"></div>
+                        <div id="image-format-chart" class="format-chart"></div>
+                    </div>
+                    
+                    <!-- Lazy Loading Check -->
+                    <div class="analytics-card">
+                        <h4 data-lang-key="imageLazyLoadTitle">Lazy Loading</h4>
+                        <div id="lazy-loading-stats" class="lazy-stats">
+                            <div class="lazy-bar-container">
+                                <div class="lazy-bar">
+                                    <div id="lazy-yes-bar" class="bar-segment lazy-yes" style="width: 0%"></div>
+                                    <div id="lazy-no-bar" class="bar-segment lazy-no" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="lazy-legend">
+                                <span class="legend-item"><span class="legend-color lazy-yes"></span> <span data-lang-key="lazyYes">Lazy</span>: <strong id="lazy-yes-count">0</strong></span>
+                                <span class="legend-item"><span class="legend-color lazy-no"></span> <span data-lang-key="lazyNo">Not Lazy</span>: <strong id="lazy-no-count">0</strong></span>
+                            </div>
+                        </div>
+                        <p id="lazy-recommendation" class="recommendation-text"></p>
+                    </div>
+                    
+                    <!-- CLS Impact (Width/Height) -->
+                    <div class="analytics-card">
+                        <h4 data-lang-key="imageClsTitle">CLS Impact (Width/Height Attributes)</h4>
+                        <div id="cls-warning" class="cls-warning hidden"></div>
+                        <div id="cls-stats" class="cls-stats">
+                            <span><span data-lang-key="imgWithDimensions">With dimensions</span>: <strong id="img-with-dimensions" class="good">0</strong></span>
+                            <span><span data-lang-key="imgWithoutDimensions">Missing dimensions</span>: <strong id="img-without-dimensions" class="warning">0</strong></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Responsive Images (srcset) -->
+                    <div class="analytics-card">
+                        <h4 data-lang-key="imageResponsiveTitle">Responsive Images (srcset)</h4>
+                        <div id="srcset-stats" class="srcset-stats">
+                            <span><span data-lang-key="imgWithSrcset">With srcset</span>: <strong id="img-with-srcset" class="good">0</strong></span>
+                            <span><span data-lang-key="imgWithoutSrcset">Without srcset</span>: <strong id="img-without-srcset">0</strong></span>
+                        </div>
+                        <p id="srcset-recommendation" class="recommendation-text"></p>
+                    </div>
+                </div>
+                
                 <div id="image-analysis-content"></div>
             </div>
             <div id="tab-social" class="tab-content">

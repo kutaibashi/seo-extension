@@ -7,23 +7,9 @@
    Fonts & Icons
    ========================================================================== */
 
-@font-face {
-    font-family: 'LucideIcons';
-    src: url('https://cdn.jsdelivr.net/npm/lucide-static@latest/font/Lucide.ttf') format('truetype');
-    font-display: block;
-}
+/* Icons are handled inline with emoji/text */
 
-.lucide-icon {
-    font-family: 'LucideIcons';
-    font-size: 1.1em;
-    line-height: 1;
-    font-style: normal;
-    font-weight: normal;
-    display: inline-block;
-    vertical-align: middle;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
+/* Icons are now handled with emoji/text */
 
 /* ==========================================================================
    CSS Variables (Design Tokens)
@@ -1113,10 +1099,6 @@ li {
     opacity: 0.7;
 }
 
-#link-buttons .tool-link .lucide-icon {
-    font-size: 1em;
-}
-
 /* ==========================================================================
    Tables
    ========================================================================== */
@@ -1510,11 +1492,6 @@ td img.preview {
     font-size: 0.875rem;
 }
 
-#tab-tools .tool-link .lucide-icon {
-    margin: 0;
-    font-size: 1em;
-}
-
 #tab-tools .tool-link:hover:not(.disabled):not([aria-disabled="true"]) {
     background-color: var(--link-button-hover-bg);
     text-decoration: none;
@@ -1869,11 +1846,6 @@ body.lang-ar #twitter-tags li .tag-value {
 
 body.lang-ar .social-section h3 .section-status .status-icon {
     margin-left: 0.4rem;
-    margin-right: 0;
-}
-
-body.lang-ar #tab-tools .tool-link .lucide-icon {
-    margin-left: 0.4em;
     margin-right: 0;
 }
 
@@ -2390,5 +2362,245 @@ body.lang-ar .diversity-stats {
 }
 
 body.lang-ar .domain-list {
+    flex-direction: row-reverse;
+}
+
+/* ==========================================================================
+   Image Analytics Styles
+   ========================================================================== */
+
+.image-analytics-section {
+    margin: 1rem 0;
+    padding: 0;
+}
+
+.image-analytics-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-blue);
+    margin: 0 0 0.75rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-blue);
+}
+
+/* Image Stats Grid */
+.image-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem;
+    background: white;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--medium-gray-border);
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--medium-gray-text);
+    margin-bottom: 0.25rem;
+}
+
+.stat-item strong {
+    font-size: 1.1rem;
+    color: var(--dark-text);
+}
+
+.stat-item strong.warning {
+    color: var(--status-warning);
+}
+
+.stat-item strong.good {
+    color: var(--status-ok);
+}
+
+/* Format Distribution Chart */
+.format-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.format-item {
+    display: grid;
+    grid-template-columns: 60px 1fr 70px;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.75rem;
+}
+
+.format-label {
+    font-weight: 600;
+    color: var(--dark-text);
+}
+
+.format-bar-container {
+    background: #e9ecef;
+    border-radius: 3px;
+    height: 16px;
+    overflow: hidden;
+}
+
+.format-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.format-stats {
+    text-align: right;
+    color: var(--medium-gray-text);
+    font-weight: 500;
+}
+
+.format-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: var(--border-radius-sm);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: #856404;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+/* Format Badges in Table */
+.format-badge {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.format-badge.format-modern {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.format-badge.format-legacy {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.format-badge.format-unknown {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Lazy Loading Stats */
+.lazy-stats {
+    padding: 0.25rem 0;
+}
+
+.lazy-bar-container {
+    margin-bottom: 0.5rem;
+}
+
+.lazy-bar {
+    display: flex;
+    height: 24px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #e9ecef;
+}
+
+.bar-segment.lazy-yes {
+    background: var(--status-ok);
+}
+
+.bar-segment.lazy-no {
+    background: var(--status-warning);
+}
+
+.lazy-legend {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+}
+
+.legend-color.lazy-yes {
+    background: var(--status-ok);
+}
+
+.legend-color.lazy-no {
+    background: var(--status-warning);
+}
+
+/* CLS Warning */
+.cls-warning {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--border-radius-sm);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: #991b1b;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.cls-stats, .srcset-stats {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+}
+
+.cls-stats strong.good, .srcset-stats strong.good {
+    color: var(--status-ok);
+}
+
+.cls-stats strong.warning {
+    color: var(--status-warning);
+}
+
+/* Recommendation Text */
+.recommendation-text {
+    font-size: 0.8rem;
+    color: var(--medium-gray-text);
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+.recommendation-text.warning {
+    color: var(--status-warning);
+}
+
+.recommendation-text.good {
+    color: var(--status-ok);
+}
+
+/* RTL Support for Image Analytics */
+body.lang-ar .image-analytics-section {
+    direction: rtl;
+    text-align: right;
+}
+
+body.lang-ar .image-stats-grid {
+    direction: rtl;
+}
+
+body.lang-ar .format-item {
+    grid-template-columns: 70px 1fr 60px;
+}
+
+body.lang-ar .format-stats {
+    text-align: left;
+}
+
+body.lang-ar .lazy-legend {
+    flex-direction: row-reverse;
+}
+
+body.lang-ar .cls-stats, body.lang-ar .srcset-stats {
     flex-direction: row-reverse;
 }

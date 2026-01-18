@@ -8,8 +8,9 @@ const crawlStatesCache = {};
 // Note: PSI data is not cached in memory here, always fetched from session storage via messages
 
 // --- Constants ---
-const CRAWL_DELAY_MS_BG = 750; // Delay between background crawl requests (ms) - Adjust if needed
-const FETCH_TIMEOUT_MS_BG = 10000; // Timeout for each link fetch (ms) - Adjust if needed
+const CRAWL_DELAY_MS_BG = 100; // Delay between background crawl requests (ms) - Reduced for speed
+const FETCH_TIMEOUT_MS_BG = 8000; // Timeout for each link fetch (ms)
+const CRAWL_CONCURRENCY = 5; // Number of parallel requests
 const BADGE_COLORS = {
     INFO: '#6c757d',    // Gray for loading/other
     SUCCESS: '#28a745', // Green for 2xx
@@ -343,28 +344,9 @@ if (chrome.webNavigation?.onErrorOccurred?.addListener) {
 }
 
 
-// --- Background Crawling Function (Uses redirect: 'manual') ---
-async function crawlNextLink(tabId) {
-    const storageKey = getCrawlStorageKey(tabId);
-    // Load state fresh from storage at the beginning of each step
-    let state = crawlStatesCache[tabId] || await loadSessionData(storageKey);
-    crawlStatesCache[tabId] = state; // Update cache
-
-    // Stop conditions
-    if (!state || !state.isRunning || state.currentIndex >= state.links.length) {
-        if (state && state.isRunning) { // Mark as finished if it was running
-            state.isRunning = false;
-            crawlStatesCache[tabId] = state;
-            await saveSessionData(storageKey, state); // Save final state
-        }
-        // console.log(`[BG Crawl] Crawling finished or stopped for tab ${tabId}.`);
-        return; // Stop the loop
-    }
-
-    const link = state.links[state.currentIndex];
-    const url = link.href;
-    let result = { status: null, error: null }; // Default result structure
-
+// --- Background Crawling Function (Parallel fetching for speed) ---
+async function fetchSingleLink(url) {
+    let result = { status: null, error: null };
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS_BG);
@@ -372,46 +354,80 @@ async function crawlNextLink(tabId) {
         const response = await fetch(url, {
             method: 'HEAD',
             signal: controller.signal,
-            redirect: 'manual' // Keep as manual to get 3xx codes directly
+            redirect: 'manual'
         });
 
         clearTimeout(timeoutId);
-
-        // response.status will be 0 for redirects (if network error), or the actual code
         result = { status: response.status, error: null };
-        // console.debug(`[BG Crawl] Status ${response.status} for ${url} (Tab ${tabId}) with redirect:manual`);
-
     } catch (error) {
-        // console.error(`[BG Crawl] Fetch error for ${url} (Tab ${tabId}):`, error.name, error.message);
         let errorMsg = 'Fetch Err';
-        // DOMException is thrown for timeouts with AbortController
         if (error.name === 'AbortError' || (error instanceof DOMException && error.message.includes('aborted'))) {
             errorMsg = 'Timeout';
-        } else if (error.name === 'TypeError') { // Often indicates network error or CORS issues
+        } else if (error.name === 'TypeError') {
             errorMsg = 'Net/URL Err';
         }
         result = { status: null, error: errorMsg };
     }
+    return { url, result };
+}
 
-    // --- Update state object and save ---
-    if (!state.results) state.results = {};
-    state.results[url] = result; // Store the result for this specific URL
-    state.currentIndex++; // Move to the next link index
-
-    // Check if finished *after* incrementing index
-    if (state.currentIndex >= state.links.length) {
-        state.isRunning = false; // Mark crawl as no longer running
-        // console.log(`[BG Crawl] Reached end of links for tab ${tabId}. Saving final state.`);
+async function crawlLinksParallel(tabId) {
+    const storageKey = getCrawlStorageKey(tabId);
+    let state = crawlStatesCache[tabId] || await loadSessionData(storageKey);
+    
+    if (!state || !state.isRunning || !state.links || state.links.length === 0) {
+        return;
     }
-    crawlStatesCache[tabId] = state; // Update cache
-    await saveSessionData(storageKey, state); // Save progress
-    // --- End update and save ---
-
-    // Schedule the next fetch ONLY if still running
-    if (state.isRunning) {
-        // Use setTimeout for scheduling the next task
-        setTimeout(() => crawlNextLink(tabId), CRAWL_DELAY_MS_BG);
+    
+    crawlStatesCache[tabId] = state;
+    
+    // Process links in batches
+    const batchSize = CRAWL_CONCURRENCY;
+    let currentIndex = state.currentIndex || 0;
+    
+    while (currentIndex < state.links.length && state.isRunning) {
+        // Get next batch
+        const batch = state.links.slice(currentIndex, currentIndex + batchSize);
+        const urls = batch.map(link => link.href);
+        
+        // Fetch all in parallel
+        const promises = urls.map(url => fetchSingleLink(url));
+        const results = await Promise.all(promises);
+        
+        // Update state with results
+        if (!state.results) state.results = {};
+        results.forEach(({ url, result }) => {
+            state.results[url] = result;
+        });
+        
+        currentIndex += batch.length;
+        state.currentIndex = currentIndex;
+        
+        // Save progress
+        crawlStatesCache[tabId] = state;
+        await saveSessionData(storageKey, state);
+        
+        // Check if still running (might have been stopped)
+        state = crawlStatesCache[tabId];
+        if (!state || !state.isRunning) break;
+        
+        // Small delay between batches to prevent overwhelming
+        if (currentIndex < state.links.length) {
+            await new Promise(resolve => setTimeout(resolve, CRAWL_DELAY_MS_BG));
+        }
     }
+    
+    // Mark as finished
+    if (state) {
+        state.isRunning = false;
+        crawlStatesCache[tabId] = state;
+        await saveSessionData(storageKey, state);
+    }
+}
+
+// Legacy function for compatibility - redirects to parallel version
+async function crawlNextLink(tabId) {
+    await crawlLinksParallel(tabId);
 }
 
 

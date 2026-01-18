@@ -119,7 +119,91 @@
     function getHeadingHierarchy() { console.log('[SEO Analyzer - content.js] Getting Hierarchy...'); const headingElements = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6')); const hierarchy = []; const stack = []; let hasH1 = false; const headingData = headingElements.map((el, index) => ({ el, index })); headingData.forEach(({ el, index }) => { const level = parseInt(el.tagName.substring(1)); if (level === 1) hasH1 = true; const node = { level: level, text: el.textContent?.trim() || '', children: [], isOutOfOrder: false, tagName: el.tagName.toLowerCase(), elementIndex: index }; const parentLevel = stack.length > 0 ? stack[stack.length - 1].level : 0; if (level > parentLevel + 1) node.isOutOfOrder = true; while (stack.length > 0 && stack[stack.length - 1].level >= level) stack.pop(); if (stack.length === 0) hierarchy.push(node); else stack[stack.length - 1].children.push(node); stack.push(node); }); return { tree: hierarchy, hasH1: hasH1 }; }
     function getSchemaMarkup() { console.log('[SEO Analyzer - content.js] Getting Schema...'); const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]'); const schemas = []; const addSchemaObject = (obj) => { if (typeof obj === 'object' && obj !== null && Object.keys(obj).length > 0) schemas.push(obj); }; schemaScripts.forEach(script => { try { const jsonContent = JSON.parse(script.textContent); if (Array.isArray(jsonContent)) jsonContent.forEach(item => addSchemaObject(item)); else if (typeof jsonContent === 'object' && jsonContent !== null) { if (Array.isArray(jsonContent['@graph'])) { jsonContent['@graph'].forEach(item => addSchemaObject(item)); const topLevelKeys = Object.keys(jsonContent).filter(k => k !== '@context' && k !== '@graph'); if (topLevelKeys.length > 0 && jsonContent['@type']) addSchemaObject(jsonContent); } else addSchemaObject(jsonContent); } } catch (e) { console.warn('Could not parse JSON-LD schema:', e, script.textContent); schemas.push({ parseError: true, scriptContent: script.textContent }); } }); return schemas; }
     function getLinkAnalysis() { console.log('[SEO Analyzer - content.js] Getting Links...'); const links = []; const pageUrl = new URL(window.location.href); const linkElements = Array.from(document.querySelectorAll('a[href]')); linkElements.forEach((a, index) => { const href = a.getAttribute('href'); if (!href || href.trim() === '' || href.startsWith('javascript:')) return; let linkType = 'external'; let absoluteUrl = ''; try { absoluteUrl = new URL(href, pageUrl.origin).href; const linkUrl = new URL(absoluteUrl); if (linkUrl.protocol === 'mailto:' || linkUrl.protocol === 'tel:') linkType = 'other'; else if (href.startsWith('#')) linkType = 'anchor'; else if (linkUrl.hostname === pageUrl.hostname) linkType = 'internal'; } catch (e) { absoluteUrl = href; linkType = 'unknown'; } links.push({ text: a.textContent?.trim() || a.innerText?.trim() || '', href: absoluteUrl, type: linkType, nofollow: a.getAttribute('rel')?.toLowerCase().includes('nofollow') || false, tagName: 'a', elementIndex: index }); }); return links; }
-    function getImageAnalysis() { console.log('[SEO Analyzer - content.js] Getting Images...'); const images = []; const imageElements = Array.from(document.querySelectorAll('img')); imageElements.forEach((img, index) => { let absoluteSrc = ''; try { absoluteSrc = new URL(img.getAttribute('src') || '', window.location.href).href; } catch (e) { console.warn("Could not parse image src:", img.getAttribute('src'), e); absoluteSrc = img.getAttribute('src') || 'invalid_src'; } images.push({ src: absoluteSrc, alt: img.getAttribute('alt')?.trim() || null, width: img.naturalWidth || img.width || null, height: img.naturalHeight || img.height || null, tagName: 'img', elementIndex: index }); }); return images; }
+    function getImageAnalysis() { 
+        console.log('[SEO Analyzer - content.js] Getting Images...'); 
+        const images = []; 
+        const imageElements = Array.from(document.querySelectorAll('img')); 
+        
+        imageElements.forEach((img, index) => { 
+            let absoluteSrc = ''; 
+            try { 
+                absoluteSrc = new URL(img.getAttribute('src') || '', window.location.href).href; 
+            } catch (e) { 
+                console.warn("Could not parse image src:", img.getAttribute('src'), e); 
+                absoluteSrc = img.getAttribute('src') || 'invalid_src'; 
+            }
+            
+            // Detect format from URL
+            let format = 'unknown';
+            try {
+                const urlPath = new URL(absoluteSrc).pathname.toLowerCase();
+                if (urlPath.includes('.webp')) format = 'webp';
+                else if (urlPath.includes('.avif')) format = 'avif';
+                else if (urlPath.includes('.svg')) format = 'svg';
+                else if (urlPath.includes('.png')) format = 'png';
+                else if (urlPath.includes('.jpg') || urlPath.includes('.jpeg')) format = 'jpg';
+                else if (urlPath.includes('.gif')) format = 'gif';
+                else if (urlPath.includes('.ico')) format = 'ico';
+                else if (urlPath.includes('.bmp')) format = 'bmp';
+            } catch (e) {}
+            
+            // Get HTML attributes (not computed values)
+            const widthAttr = img.getAttribute('width');
+            const heightAttr = img.getAttribute('height');
+            const hasWidthAttr = widthAttr !== null && widthAttr !== '';
+            const hasHeightAttr = heightAttr !== null && heightAttr !== '';
+            
+            // Lazy loading
+            const loading = img.getAttribute('loading') || null;
+            const hasLazyLoading = loading === 'lazy';
+            
+            // Responsive images
+            const srcset = img.getAttribute('srcset') || null;
+            const sizes = img.getAttribute('sizes') || null;
+            const hasSrcset = srcset !== null && srcset !== '';
+            
+            // Estimate file size (rough estimate based on dimensions and format)
+            let estimatedSize = null;
+            const naturalWidth = img.naturalWidth || 0;
+            const naturalHeight = img.naturalHeight || 0;
+            if (naturalWidth > 0 && naturalHeight > 0) {
+                const pixels = naturalWidth * naturalHeight;
+                // Rough bytes per pixel estimates by format
+                const bytesPerPixel = {
+                    'jpg': 0.3,
+                    'jpeg': 0.3,
+                    'png': 0.8,
+                    'webp': 0.2,
+                    'avif': 0.15,
+                    'gif': 0.5,
+                    'svg': 0.1,
+                    'unknown': 0.4
+                };
+                const bpp = bytesPerPixel[format] || 0.4;
+                estimatedSize = Math.round(pixels * bpp);
+            }
+            
+            images.push({ 
+                src: absoluteSrc, 
+                alt: img.getAttribute('alt')?.trim() || null, 
+                width: img.naturalWidth || img.width || null, 
+                height: img.naturalHeight || img.height || null,
+                hasWidthAttr,
+                hasHeightAttr,
+                format,
+                loading,
+                hasLazyLoading,
+                srcset,
+                sizes,
+                hasSrcset,
+                estimatedSize,
+                tagName: 'img', 
+                elementIndex: index 
+            }); 
+        }); 
+        
+        return images; 
+    }
     function getSocialMediaMetadata() { console.log('[SEO Analyzer - content.js] Getting Social...'); const socialTags = { og: {}, twitter: {} }; document.querySelectorAll('meta[property^="og:"], meta[name^="twitter:"]').forEach(meta => { const key = meta.getAttribute('property') || meta.getAttribute('name'); const value = meta.getAttribute('content')?.trim(); if (value) { if (key.startsWith('og:')) socialTags.og[key] = value; else if (key.startsWith('twitter:')) socialTags.twitter[key] = value; } }); return socialTags; }
     function getContentAnalysis() { 
         console.log('[SEO Analyzer - content.js] Getting Content Analysis...'); 
