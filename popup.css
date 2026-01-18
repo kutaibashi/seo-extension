@@ -2142,3 +2142,253 @@ body.lang-ar .warnings-container ul {
 body.lang-ar .keyword-item {
     flex-direction: row-reverse;
 }
+
+/* ==========================================================================
+   Link Analytics Styles
+   ========================================================================== */
+
+.link-analytics-section {
+    margin: 1rem 0;
+    padding: 0;
+}
+
+.link-analytics-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-blue);
+    margin: 0 0 0.75rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-blue);
+}
+
+.analytics-card {
+    background: var(--light-gray-bg);
+    border: 1px solid var(--medium-gray-border);
+    border-radius: var(--border-radius-md);
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.analytics-card h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--dark-text);
+    margin: 0 0 0.5rem 0;
+}
+
+/* Follow/Nofollow Ratio Chart */
+.ratio-chart {
+    padding: 0.25rem 0;
+}
+
+.ratio-bar {
+    display: flex;
+    height: 24px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #e9ecef;
+}
+
+.bar-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: white;
+    transition: width 0.3s ease;
+    min-width: 0;
+}
+
+.bar-segment.follow {
+    background: var(--status-ok);
+}
+
+.bar-segment.nofollow {
+    background: var(--status-warning);
+}
+
+.ratio-legend {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+.legend-color.follow {
+    background: var(--status-ok);
+}
+
+.legend-color.nofollow {
+    background: var(--status-warning);
+}
+
+/* Anchor Text Distribution */
+.anchor-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: var(--border-radius-sm);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: #856404;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.anchor-warning .warning-icon {
+    flex-shrink: 0;
+}
+
+.anchor-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.anchor-item {
+    display: grid;
+    grid-template-columns: 120px 1fr 60px;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.75rem;
+}
+
+.anchor-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--dark-text);
+}
+
+.anchor-bar-container {
+    background: #e9ecef;
+    border-radius: 3px;
+    height: 16px;
+    overflow: hidden;
+}
+
+.anchor-bar {
+    height: 100%;
+    background: var(--primary-blue);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.anchor-bar.empty {
+    background: var(--medium-gray-text);
+}
+
+.anchor-stats {
+    text-align: right;
+    color: var(--medium-gray-text);
+    font-weight: 500;
+}
+
+.anchor-item.empty-anchor .anchor-text {
+    color: var(--medium-gray-text);
+}
+
+/* Domain Diversity */
+.diversity-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.diversity-stats strong {
+    font-weight: 600;
+}
+
+.diversity-good {
+    color: var(--status-ok) !important;
+}
+
+.diversity-moderate {
+    color: var(--status-warning) !important;
+}
+
+.diversity-poor {
+    color: var(--status-error) !important;
+}
+
+.domain-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.domain-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: white;
+    border: 1px solid var(--medium-gray-border);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.domain-name {
+    color: var(--dark-text);
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.domain-count {
+    background: var(--primary-blue);
+    color: white;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-weight: 500;
+    font-size: 0.7rem;
+}
+
+.no-data {
+    color: var(--medium-gray-text);
+    font-style: italic;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+/* RTL Support for Link Analytics */
+body.lang-ar .analytics-card {
+    direction: rtl;
+    text-align: right;
+}
+
+body.lang-ar .ratio-legend {
+    flex-direction: row-reverse;
+}
+
+body.lang-ar .anchor-item {
+    grid-template-columns: 60px 1fr 120px;
+}
+
+body.lang-ar .anchor-stats {
+    text-align: left;
+}
+
+body.lang-ar .diversity-stats {
+    flex-direction: row-reverse;
+}
+
+body.lang-ar .domain-list {
+    flex-direction: row-reverse;
+}

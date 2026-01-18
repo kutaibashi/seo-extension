@@ -15,7 +15,21 @@ async function loadTranslations() {
 // Helper function to get translation with template replacement
 function t(key, params = {}) {
     const lang = currentLang || 'en';
-    let text = translations[lang]?.[key] ?? translations['en']?.[key] ?? key;
+    
+    // Check if translations are loaded
+    if (!translations || !translations[lang] || Object.keys(translations[lang]).length === 0) {
+        console.warn('[SEO Analyzer] Translations not loaded yet for key:', key);
+        // Return key as fallback - will be ugly but functional
+        return key;
+    }
+    
+    let text = translations[lang]?.[key] ?? translations['en']?.[key];
+    
+    // If still not found, return the key itself (shouldn't happen if translations are loaded)
+    if (text === undefined || text === null) {
+        console.warn('[SEO Analyzer] Translation key not found:', key);
+        return key;
+    }
     
     // Replace template placeholders like {len}, {min}, {max}, {count}, {url}, {err}, etc.
     if (typeof text === 'string' && Object.keys(params).length > 0) {
@@ -98,7 +112,7 @@ function updateUI() {
     }
     const exportButton = document.getElementById('export-links-btn');
     if (exportButton) {
-        const exportText = translations[currentLang].exportLinksButton || "Export Links (.txt)";
+        const exportText = translations[currentLang].exportLinksButton || "Export Links (.csv)";
         const icon = exportButton.querySelector('.lucide-icon');
         if (icon) {
             exportButton.textContent = ` ${exportText}`;
@@ -444,7 +458,8 @@ function populateKeywordDensity(keywords) {
     container.innerHTML = '';
     
     if (!keywords || keywords.length === 0) {
-        container.innerHTML = `<p class="keyword-density-empty">${t('keywordDensityEmpty')}</p>`;
+        const emptyMsg = t('keywordDensityEmpty') || 'Not enough content to analyze keyword density.';
+        container.innerHTML = `<p class="keyword-density-empty">${emptyMsg}</p>`;
         return;
     }
     
@@ -500,6 +515,192 @@ function populateLinksTab(data) {
     if (data.links && data.links.length > 0) { totalLinks = data.links.length; data.links.forEach(link => { switch (link.type) { case 'internal': internalLinks.push(link); break; case 'external': externalLinks.push(link); break; default: otherLinks.push(link); break; } }); }
     totalCountEl.textContent = totalLinks.toLocaleString(); internalCountEl.textContent = internalLinks.length.toLocaleString(); externalCountEl.textContent = externalLinks.length.toLocaleString(); otherCountEl.textContent = otherLinks.length.toLocaleString();
     createLinkTable(internalLinks, 'internal-links-container', 'linksInternalCaption'); createLinkTable(externalLinks, 'external-links-container', 'linksExternalCaption'); createLinkTable(otherLinks, 'other-links-container', 'linksOtherCaption');
+    
+    // Populate Link Analytics
+    populateLinkAnalytics(data.links || [], externalLinks);
+}
+
+// Link Analytics Functions
+function populateLinkAnalytics(allLinks, externalLinks) {
+    populateFollowNofollowRatio(allLinks);
+    populateAnchorTextDistribution(allLinks);
+    populateDomainDiversity(externalLinks);
+}
+
+// Follow/Nofollow Ratio Visualization
+function populateFollowNofollowRatio(links) {
+    const followBar = document.getElementById('follow-bar');
+    const nofollowBar = document.getElementById('nofollow-bar');
+    const followCount = document.getElementById('follow-count');
+    const nofollowCount = document.getElementById('nofollow-count');
+    
+    if (!followBar || !nofollowBar || !followCount || !nofollowCount) return;
+    
+    let follow = 0, nofollow = 0;
+    links.forEach(link => {
+        if (link.nofollow) nofollow++;
+        else follow++;
+    });
+    
+    const total = follow + nofollow;
+    const followPct = total > 0 ? (follow / total * 100) : 0;
+    const nofollowPct = total > 0 ? (nofollow / total * 100) : 0;
+    
+    followBar.style.width = followPct + '%';
+    nofollowBar.style.width = nofollowPct + '%';
+    followCount.textContent = follow;
+    nofollowCount.textContent = nofollow;
+    
+    // Add tooltip
+    followBar.title = `${t('followLabel')}: ${follow} (${followPct.toFixed(1)}%)`;
+    nofollowBar.title = `${t('nofollowLabel')}: ${nofollow} (${nofollowPct.toFixed(1)}%)`;
+}
+
+// Anchor Text Distribution with Over-optimization Warning
+function populateAnchorTextDistribution(links) {
+    const chartContainer = document.getElementById('anchor-text-chart');
+    const warningContainer = document.getElementById('anchor-text-warning');
+    
+    if (!chartContainer || !warningContainer) return;
+    
+    chartContainer.innerHTML = '';
+    warningContainer.innerHTML = '';
+    warningContainer.classList.add('hidden');
+    
+    // Count anchor text occurrences
+    const anchorCounts = {};
+    let emptyCount = 0;
+    
+    links.forEach(link => {
+        const text = (link.text || '').trim().toLowerCase();
+        if (!text || text.length === 0) {
+            emptyCount++;
+        } else {
+            // Normalize text (first 50 chars)
+            const normalizedText = text.substring(0, 50);
+            anchorCounts[normalizedText] = (anchorCounts[normalizedText] || 0) + 1;
+        }
+    });
+    
+    // Sort by count and get top 10
+    const sorted = Object.entries(anchorCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+    
+    const totalLinks = links.length;
+    
+    // Check for over-optimization (same anchor used > 30% of time)
+    const overOptimized = sorted.filter(([text, count]) => {
+        const pct = (count / totalLinks) * 100;
+        return pct > 30 && count > 3;
+    });
+    
+    if (overOptimized.length > 0) {
+        warningContainer.classList.remove('hidden');
+        const warningText = overOptimized.map(([text, count]) => {
+            const pct = ((count / totalLinks) * 100).toFixed(1);
+            return `"${text.substring(0, 30)}${text.length > 30 ? '...' : ''}" (${pct}%)`;
+        }).join(', ');
+        warningContainer.innerHTML = `<span class="warning-icon">⚠️</span> ${t('anchorOverOptimized')}: ${warningText}`;
+    }
+    
+    // Build chart
+    if (sorted.length === 0 && emptyCount === 0) {
+        chartContainer.innerHTML = `<p class="no-data">${t('anchorNoData')}</p>`;
+        return;
+    }
+    
+    const maxCount = sorted.length > 0 ? sorted[0][1] : emptyCount;
+    
+    sorted.forEach(([text, count]) => {
+        const pct = ((count / totalLinks) * 100).toFixed(1);
+        const barWidth = (count / maxCount) * 100;
+        
+        const item = document.createElement('div');
+        item.className = 'anchor-item';
+        item.innerHTML = `
+            <div class="anchor-text" title="${safeText(text)}">${safeText(text.substring(0, 40))}${text.length > 40 ? '...' : ''}</div>
+            <div class="anchor-bar-container">
+                <div class="anchor-bar" style="width: ${barWidth}%"></div>
+            </div>
+            <div class="anchor-stats">${count} (${pct}%)</div>
+        `;
+        chartContainer.appendChild(item);
+    });
+    
+    // Add empty anchors if significant
+    if (emptyCount > 0) {
+        const pct = ((emptyCount / totalLinks) * 100).toFixed(1);
+        const barWidth = (emptyCount / maxCount) * 100;
+        
+        const item = document.createElement('div');
+        item.className = 'anchor-item empty-anchor';
+        item.innerHTML = `
+            <div class="anchor-text"><em>${t('anchorEmpty')}</em></div>
+            <div class="anchor-bar-container">
+                <div class="anchor-bar empty" style="width: ${barWidth}%"></div>
+            </div>
+            <div class="anchor-stats">${emptyCount} (${pct}%)</div>
+        `;
+        chartContainer.appendChild(item);
+    }
+}
+
+// Outbound Domain Diversity
+function populateDomainDiversity(externalLinks) {
+    const uniqueDomainsEl = document.getElementById('unique-domains-count');
+    const externalForDiversityEl = document.getElementById('external-for-diversity');
+    const domainListEl = document.getElementById('domain-list');
+    
+    if (!uniqueDomainsEl || !externalForDiversityEl || !domainListEl) return;
+    
+    domainListEl.innerHTML = '';
+    
+    // Extract domains from external links
+    const domainCounts = {};
+    
+    externalLinks.forEach(link => {
+        try {
+            const url = new URL(link.href);
+            let domain = url.hostname;
+            if (domain.startsWith('www.')) domain = domain.substring(4);
+            domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+        } catch (e) {
+            // Invalid URL
+        }
+    });
+    
+    const uniqueDomains = Object.keys(domainCounts).length;
+    uniqueDomainsEl.textContent = uniqueDomains;
+    externalForDiversityEl.textContent = externalLinks.length;
+    
+    // Sort domains by count
+    const sorted = Object.entries(domainCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15);
+    
+    if (sorted.length === 0) {
+        domainListEl.innerHTML = `<p class="no-data">${t('domainNoExternal')}</p>`;
+        return;
+    }
+    
+    sorted.forEach(([domain, count]) => {
+        const item = document.createElement('div');
+        item.className = 'domain-item';
+        item.innerHTML = `
+            <span class="domain-name" title="${safeText(domain)}">${safeText(domain)}</span>
+            <span class="domain-count">${count}</span>
+        `;
+        domainListEl.appendChild(item);
+    });
+    
+    // Show diversity indicator
+    const diversityRatio = externalLinks.length > 0 ? (uniqueDomains / externalLinks.length) : 0;
+    let diversityClass = 'good';
+    if (diversityRatio < 0.3) diversityClass = 'poor';
+    else if (diversityRatio < 0.6) diversityClass = 'moderate';
+    
+    uniqueDomainsEl.className = `diversity-${diversityClass}`;
 }
 function updateLinkStatusUI(url, status, error = null) {
     const rows = document.querySelectorAll(`#tab-links tbody tr[data-link-url="${CSS.escape(url)}"]`); if (!rows || rows.length === 0) return;
@@ -909,12 +1110,99 @@ function handleBackgroundCrawlState(state, isPollingUpdate = false) {
     if (isRunning) { if (crawlButton) { if (!crawlButton.disabled) { crawlButton.disabled = true; crawlButton.textContent = translations[currentLang].crawlButtonRunning || "Crawling..."; const icon = crawlButton.querySelector('.lucide-icon'); if (icon) icon.textContent = 'loader-2'; else crawlButton.innerHTML = `<span class="lucide-icon" aria-hidden="true">loader-2</span> ${crawlButton.textContent}`; } } if (exportButton && !exportButton.disabled) exportButton.disabled = true; if (!crawlStatusIntervalId && activeTabId) { crawlStatusIntervalId = setInterval(() => { if (!activeTabId) { clearInterval(crawlStatusIntervalId); crawlStatusIntervalId = null; return; } chrome.runtime.sendMessage({ action: 'getCrawlStatusForTab', tabId: activeTabId }, (latestState) => { if (chrome.runtime.lastError) { /* Error polling status */ } else { handleBackgroundCrawlState(latestState, true); } }); }, POLLING_INTERVAL_MS); } }
     else { if (crawlStatusIntervalId) { clearInterval(crawlStatusIntervalId); crawlStatusIntervalId = null; } if (crawlButton && crawlButton.disabled) { crawlButton.disabled = false; crawlButton.textContent = translations[currentLang].crawlButtonStart || "Crawl Links"; const icon = crawlButton.querySelector('.lucide-icon'); if (icon) icon.textContent = 'zap'; else crawlButton.innerHTML = `<span class="lucide-icon" aria-hidden="true">zap</span> ${crawlButton.textContent}`; } if (exportButton && exportButton.disabled) exportButton.disabled = false; }
 }
-function exportLinksToTxt() {
-    if (!cachedData || !cachedData.links || cachedData.links.length === 0) { alert(translations[currentLang].crawlAlertNoLinks || 'No link data available to export.'); return; }
-    const lines = []; lines.push("Type\tLink Text\tURL\tNofollow\tStatus"); lines.push("----\t---------\t---\t--------\t------");
-    const addLinkLines = (linkArray, typeName) => { linkArray.forEach(link => { const text = link.text ? link.text.replace(/\s+/g, ' ').trim() : (translations[currentLang].linksNoText || '(No Text/Image)'); const url = link.href || 'N/A'; const nofollow = link.nofollow ? 'Yes' : 'No'; let status = 'N/A'; try { const rows = document.querySelectorAll(`#tab-links tbody tr[data-link-url="${CSS.escape(url)}"]`); if (rows.length > 0) { const statusCell = rows[0].querySelector('.link-status-code'); if (statusCell && statusCell.textContent !== (translations[currentLang].crawlStatusLoading || '...') && statusCell.textContent !== '--') { status = statusCell.textContent; } } } catch (e) { /* Ignore CSS escape issue */ } lines.push(`${typeName}\t${text}\t${url}\t${nofollow}\t${status}`); }); };
-    const internalLinks = cachedData.links.filter(l => l.type === 'internal'); const externalLinks = cachedData.links.filter(l => l.type === 'external'); const otherLinks = cachedData.links.filter(l => l.type !== 'internal' && l.type !== 'external'); addLinkLines(internalLinks, "Internal"); addLinkLines(externalLinks, "External"); addLinkLines(otherLinks, "Other");
-    const fileContent = lines.join('\n'); try { const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' }); const downloadUrl = URL.createObjectURL(blob); const linkElement = document.createElement('a'); linkElement.href = downloadUrl; let filename = 'seo_links_export.txt'; try { if (cachedData && cachedData.url) { const hostname = new URL(cachedData.url).hostname; if (hostname) { filename = `${hostname.replace(/[^a-z0-9]/gi, '_')}_links.txt`; } } } catch (e) { } linkElement.download = filename; document.body.appendChild(linkElement); linkElement.click(); document.body.removeChild(linkElement); URL.revokeObjectURL(downloadUrl); } catch (e) { alert("Failed to export links."); }
+function exportLinksToCSV() {
+    if (!cachedData || !cachedData.links || cachedData.links.length === 0) { 
+        alert(translations[currentLang].crawlAlertNoLinks || 'No link data available to export.'); 
+        return; 
+    }
+    
+    // CSV helper to escape values
+    const escapeCSV = (value) => {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        // If contains comma, newline, or quote, wrap in quotes and escape quotes
+        if (str.includes(',') || str.includes('\n') || str.includes('"') || str.includes('\r')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    };
+    
+    const lines = [];
+    // CSV Header
+    lines.push('Type,Link Text,URL,Nofollow,Status,Domain');
+    
+    const addLinkLines = (linkArray, typeName) => { 
+        linkArray.forEach(link => { 
+            const text = link.text ? link.text.replace(/\s+/g, ' ').trim() : '';
+            const url = link.href || '';
+            const nofollow = link.nofollow ? 'Yes' : 'No';
+            
+            // Extract domain
+            let domain = '';
+            try {
+                const urlObj = new URL(url);
+                domain = urlObj.hostname;
+            } catch (e) {}
+            
+            // Get status from UI if available
+            let status = '';
+            try { 
+                const rows = document.querySelectorAll(`#tab-links tbody tr[data-link-url="${CSS.escape(url)}"]`); 
+                if (rows.length > 0) { 
+                    const statusCell = rows[0].querySelector('.link-status-code'); 
+                    if (statusCell && statusCell.textContent !== (translations[currentLang].crawlStatusLoading || '...') && statusCell.textContent !== '--') { 
+                        status = statusCell.textContent; 
+                    } 
+                } 
+            } catch (e) { /* Ignore CSS escape issue */ } 
+            
+            lines.push([
+                escapeCSV(typeName),
+                escapeCSV(text),
+                escapeCSV(url),
+                escapeCSV(nofollow),
+                escapeCSV(status),
+                escapeCSV(domain)
+            ].join(','));
+        }); 
+    };
+    
+    const internalLinks = cachedData.links.filter(l => l.type === 'internal'); 
+    const externalLinks = cachedData.links.filter(l => l.type === 'external'); 
+    const otherLinks = cachedData.links.filter(l => l.type !== 'internal' && l.type !== 'external'); 
+    
+    addLinkLines(internalLinks, 'Internal'); 
+    addLinkLines(externalLinks, 'External'); 
+    addLinkLines(otherLinks, 'Other');
+    
+    // Add BOM for Excel UTF-8 compatibility
+    const BOM = '\uFEFF';
+    const fileContent = BOM + lines.join('\r\n'); 
+    
+    try { 
+        const blob = new Blob([fileContent], { type: 'text/csv;charset=utf-8' }); 
+        const downloadUrl = URL.createObjectURL(blob); 
+        const linkElement = document.createElement('a'); 
+        linkElement.href = downloadUrl; 
+        
+        let filename = 'seo_links_export.csv'; 
+        try { 
+            if (cachedData && cachedData.url) { 
+                const hostname = new URL(cachedData.url).hostname; 
+                if (hostname) { 
+                    filename = `${hostname.replace(/[^a-z0-9]/gi, '_')}_links.csv`; 
+                } 
+            } 
+        } catch (e) { } 
+        
+        linkElement.download = filename; 
+        document.body.appendChild(linkElement); 
+        linkElement.click(); 
+        document.body.removeChild(linkElement); 
+        URL.revokeObjectURL(downloadUrl); 
+    } catch (e) { 
+        alert("Failed to export links."); 
+    }
 }
 
 const tabButtons = document.querySelectorAll('.tab-button'); const tabContents = document.querySelectorAll('.tab-content');
@@ -1027,7 +1315,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     // --- END MODIFIED ---
 
-    if (exportButton) { exportButton.addEventListener('click', () => { exportLinksToTxt(); }); }
+    if (exportButton) { exportButton.addEventListener('click', () => { exportLinksToCSV(); }); }
     if (crawlButton) { crawlButton.addEventListener('click', () => { startLinkCrawling(); }); }
     if (fetchPsiButton) { fetchPsiButton.addEventListener('click', handleFetchPsiData); }
 

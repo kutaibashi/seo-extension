@@ -127,20 +127,103 @@
         let wordCount = 0; 
         let letterCount = 0;
         let keywordDensity = [];
-        const mainSelectors = ['main', 'article', '[role="main"]', '.main-content', '#main-content', '.post-content', '#content', '.entry-content']; 
-        let mainElement = null; 
-        for (const selector of mainSelectors) { mainElement = document.querySelector(selector); if (mainElement) break; } 
-        if (!mainElement) mainElement = document.body; 
+        
+        // Extended list of common content area selectors
+        const mainSelectors = [
+            'main', 
+            'article', 
+            '[role="main"]', 
+            '.main-content', 
+            '#main-content',
+            '.post-content',
+            '#content',
+            '.content',
+            '.entry-content',
+            '.page-content',
+            '.single-content',
+            '.blog-content',
+            '.article-content',
+            '.post-body',
+            '.entry-body',
+            // WordPress themes
+            '.site-content',
+            '#primary',
+            '.hentry',
+            // Common frameworks
+            '.container main',
+            '.wrapper main',
+            '#main',
+            '.main'
+        ]; 
+        
+        // Find the LARGEST content area, not just the first match
+        let mainElement = null;
+        let maxTextLength = 0;
+        
+        for (const selector of mainSelectors) { 
+            try {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(el => {
+                    const textLen = (el.textContent || '').length;
+                    if (textLen > maxTextLength) {
+                        maxTextLength = textLen;
+                        mainElement = el;
+                        console.log('[SEO Analyzer] Found larger content area:', selector, 'with', textLen, 'chars');
+                    }
+                });
+            } catch (e) {
+                // Invalid selector, skip
+            }
+        } 
+        
+        // Fallback: use body
+        if (!mainElement || maxTextLength < 100) {
+            console.log('[SEO Analyzer] Using body as content area (found content was too small:', maxTextLength, 'chars)');
+            mainElement = document.body;
+        } else {
+            console.log('[SEO Analyzer] Final content area has', maxTextLength, 'chars');
+        }
+        
         if (mainElement) { 
             try { 
                 const clone = mainElement.cloneNode(true); 
-                clone.querySelectorAll('header, footer, nav, aside, script, style, noscript, iframe, svg, button, form, input, textarea, select, label, img, figure, .advertisement, .ads, .sidebar, .comments, .related-posts, .share-buttons, .breadcrumbs, .pagination, .widget, .footer-widget, .header-widget, [aria-hidden="true"], link, meta').forEach(el => el.remove()); 
+                
+                // Remove non-content elements
+                const removeSelectors = [
+                    'header', 'footer', 'nav', 'aside',
+                    'script', 'style', 'noscript', 'iframe', 'svg',
+                    'button', 'form', 'input', 'textarea', 'select', 'label',
+                    'img', 'figure', 'figcaption', 'video', 'audio', 'canvas',
+                    '.advertisement', '.ads', '.ad', '[class*="advert"]',
+                    '.sidebar', '.comments', '.comment-form',
+                    '.related-posts', '.share-buttons', '.social-share',
+                    '.breadcrumbs', '.breadcrumb', '.pagination',
+                    '.widget', '.footer-widget', '.header-widget',
+                    '[aria-hidden="true"]', 'link', 'meta',
+                    '.menu', '.navigation', '.nav-menu',
+                    '.search-form', '.newsletter', '.popup',
+                    '.cookie-notice', '.cookie-banner',
+                    '#comments', '#respond'
+                ];
+                
+                removeSelectors.forEach(selector => {
+                    try {
+                        clone.querySelectorAll(selector).forEach(el => el.remove());
+                    } catch (e) {
+                        // Invalid selector, skip
+                    }
+                });
+                
                 textContent = clone.textContent || ''; 
                 textContent = textContent.replace(/\s+/g, ' ').trim(); 
+                
+                console.log('[SEO Analyzer] Extracted text length after cleanup:', textContent.length);
+                
                 if (textContent) { 
                     letterCount = textContent.length; 
                     const words = textContent.split(/\s+/).filter(word => word.length > 0);
                     wordCount = words.length;
+                    console.log('[SEO Analyzer] Final word count:', wordCount);
                     // Keyword density analysis
                     keywordDensity = analyzeKeywordDensity(words, wordCount);
                 } 
@@ -163,8 +246,9 @@
     function analyzeKeywordDensity(words, totalWords) {
         if (!words || words.length === 0) return [];
         
-        // Common stop words to exclude
+        // Common stop words to exclude (English + Arabic)
         const stopWords = new Set([
+            // English stop words
             'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
             'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had',
             'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must',
@@ -179,14 +263,20 @@
             'one', 'two', 'first', 'new', 'like', 'even', 'way', 'well', 'back', 'much', 'go',
             'see', 'come', 'make', 'take', 'know', 'think', 'say', 'use', 'find', 'give', 'tell',
             'work', 'call', 'try', 'ask', 'seem', 'feel', 'look', 'want', 'put', 'mean', 'keep',
-            'let', 'begin', 'seem', 'help', 'show', 'hear', 'play', 'run', 'move', 'live', 'believe'
+            'let', 'begin', 'seem', 'help', 'show', 'hear', 'play', 'run', 'move', 'live', 'believe',
+            // Arabic stop words
+            'في', 'من', 'إلى', 'على', 'عن', 'مع', 'هذا', 'هذه', 'ذلك', 'تلك', 'التي', 'الذي',
+            'هو', 'هي', 'هم', 'هن', 'أنا', 'أنت', 'نحن', 'أنتم', 'كان', 'كانت', 'يكون', 'تكون',
+            'ما', 'لا', 'أن', 'إن', 'أو', 'و', 'ثم', 'بل', 'لكن', 'حتى', 'إذا', 'لو', 'كل',
+            'بعض', 'أي', 'كيف', 'أين', 'متى', 'لماذا', 'ماذا', 'منذ', 'قبل', 'بعد', 'بين',
+            'عند', 'حين', 'لدى', 'ليس', 'غير', 'سوى', 'فقط', 'أيضا', 'جدا', 'كثير', 'قليل'
         ]);
 
         const wordFreq = {};
         words.forEach(word => {
-            // Normalize: lowercase, remove punctuation
-            const normalized = word.toLowerCase().replace(/[^a-z0-9\u00C0-\u024F]/g, '');
-            if (normalized.length >= 3 && !stopWords.has(normalized) && !/^\d+$/.test(normalized)) {
+            // Normalize: lowercase, keep letters (including Arabic \u0600-\u06FF) and numbers
+            const normalized = word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+            if (normalized.length >= 2 && !stopWords.has(normalized) && !/^\d+$/.test(normalized)) {
                 wordFreq[normalized] = (wordFreq[normalized] || 0) + 1;
             }
         });
