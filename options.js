@@ -1,11 +1,12 @@
 function saveOptions() {
-  const apiKey = document.getElementById('apiKey').value;
-  chrome.storage.sync.set({
+  const apiKey = document.getElementById('apiKey').value.trim();
+  // Use local storage for API keys - more secure, stays on device
+  chrome.storage.local.set({
     psiApiKey: apiKey
   }, function () {
     // Update status to let user know options were saved.
     const status = document.getElementById('status');
-    status.textContent = 'API Key saved.';
+    status.textContent = 'API Key saved securely.';
     setTimeout(function () {
       status.textContent = '';
     }, 1500);
@@ -14,7 +15,7 @@ function saveOptions() {
 
 function restoreOptions() {
   // Use default value psiApiKey = '' .
-  chrome.storage.sync.get({
+  chrome.storage.local.get({
     psiApiKey: ''
   }, function (items) {
     document.getElementById('apiKey').value = items.psiApiKey;
