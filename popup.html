@@ -53,6 +53,25 @@
             <div id="loading" data-lang-key="statusLoading">Loading data...</div>
             <div id="error" class="hidden"></div>
             <div id="tab-meta-content" class="tab-content active">
+                <!-- SERP Preview Section -->
+                <h2 data-lang-key="serpPreviewTitle">Google SERP Preview</h2>
+                <div id="serp-preview" class="serp-preview-container">
+                    <div class="serp-preview-box">
+                        <div class="serp-url" id="serp-url"></div>
+                        <div class="serp-title" id="serp-title"></div>
+                        <div class="serp-description" id="serp-description"></div>
+                    </div>
+                    <div class="serp-info">
+                        <span id="serp-title-length"></span> | <span id="serp-desc-length"></span>
+                    </div>
+                </div>
+
+                <!-- Duplicate Meta Warnings -->
+                <div id="duplicate-warnings" class="warnings-container hidden">
+                    <h3 data-lang-key="duplicateWarningsTitle">⚠️ Duplicate Meta Tag Warnings</h3>
+                    <ul id="duplicate-warnings-list"></ul>
+                </div>
+
                 <h2 data-lang-key="metaHeadingTitle1">Meta Data & Recommendations</h2>
                 <div class="meta-item"><strong data-lang-key="metaLabelTitle">SEO Title</strong><span class="value"
                         id="seo-title"></span>
@@ -76,6 +95,21 @@
                     <div class="recommendation"><span class="status-icon" id="robots-status-icon"></span><span
                             id="robots-recommendation"></span></div>
                 </div>
+
+                <!-- Viewport Meta Check -->
+                <div class="meta-item"><strong data-lang-key="metaLabelViewport">Viewport Meta</strong><span class="value"
+                        id="viewport-meta"></span>
+                    <div class="recommendation"><span class="status-icon" id="viewport-status-icon"></span><span
+                            id="viewport-recommendation"></span></div>
+                </div>
+
+                <!-- Favicon Detection -->
+                <div class="meta-item"><strong data-lang-key="metaLabelFavicon">Favicon</strong><span class="value"
+                        id="favicon-status"></span>
+                    <div class="recommendation"><span class="status-icon" id="favicon-status-icon"></span><span
+                            id="favicon-recommendation"></span></div>
+                </div>
+
                 <h2 data-lang-key="metaHeadingTitle2">Heading Counts & Structure</h2>
                 <div class="meta-item" id="h1-status"><strong data-lang-key="metaLabelH1Status">H1 Tag
                         Status:</strong><span id="h1-recommendation"></span></div>
@@ -89,6 +123,15 @@
                     <p style="font-size: 0.8rem; color: var(--medium-gray-text);" data-lang-key="contentNote">
                         (Approximate count based on main content area)</p>
                 </div>
+
+                <!-- Keyword Density Analysis -->
+                <h2 data-lang-key="keywordDensityTitle">Keyword Density Analysis</h2>
+                <div id="keyword-density-container" class="meta-item">
+                    <p style="font-size: 0.8rem; color: var(--medium-gray-text); margin-bottom: 0.5rem;" data-lang-key="keywordDensityNote">
+                        Top keywords by frequency (excluding common stop words)</p>
+                    <div id="keyword-density-list" class="keyword-density-grid"></div>
+                </div>
+
                 <h2 data-lang-key="hreflangTitle">Language Versions (hreflang)</h2>
                 <div id="hreflang-list" class="meta-item"></div>
             </div>

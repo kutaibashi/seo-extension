@@ -235,15 +235,231 @@ function updateSeoScoreDisplay(score) {
 function populateMetaContentTab(data) {
     const TITLE_RECOMMENDED_MAX_LENGTH = 60; const DESC_RECOMMENDED_MAX_LENGTH = 160; const TITLE_MIN_LENGTH = 10; const DESC_MIN_LENGTH = 50; const lang = currentLang || 'en';
     function setStatus(iconElId, textElId, status, text) { const iconEl = document.getElementById(iconElId); const textEl = document.getElementById(textElId); if (iconEl) iconEl.className = `status-icon ${status}`; if (textEl) textEl.innerHTML = text; }
+    
+    // SERP Preview
+    populateSerpPreview(data.title, data.description, data.url, TITLE_RECOMMENDED_MAX_LENGTH, DESC_RECOMMENDED_MAX_LENGTH);
+    
+    // Duplicate Meta Warnings
+    populateDuplicateWarnings(data.duplicates);
+    
     document.getElementById('seo-title').textContent = data.title || 'N/A'; document.getElementById('meta-description').textContent = data.description || 'N/A'; document.getElementById('url').textContent = data.url || 'N/A'; document.getElementById('canonical-url').textContent = data.canonical || 'N/A'; document.getElementById('robots-meta').textContent = data.robots || 'N/A';
     const titleLength = data.title?.length || 0; let titleStatus = 'ok', titleText = t('titleRecOk', {len: titleLength, min: TITLE_MIN_LENGTH, max: TITLE_RECOMMENDED_MAX_LENGTH}); if (titleLength === 0) { titleStatus = 'error'; titleText = t('titleRecErrorMissing'); } else if (titleLength < TITLE_MIN_LENGTH) { titleStatus = 'warning'; titleText = t('titleRecWarnShort', {len: titleLength, min: TITLE_MIN_LENGTH, max: TITLE_RECOMMENDED_MAX_LENGTH}); } else if (titleLength > TITLE_RECOMMENDED_MAX_LENGTH) { titleStatus = 'warning'; titleText = t('titleRecWarnLong', {len: titleLength, min: TITLE_MIN_LENGTH, max: TITLE_RECOMMENDED_MAX_LENGTH}); } setStatus('title-status-icon', 'title-recommendation', titleStatus, titleText);
     const descLength = data.description?.length || 0; let descStatus = 'ok', descText = t('descRecOk', {len: descLength, min: DESC_MIN_LENGTH, max: DESC_RECOMMENDED_MAX_LENGTH}); if (descLength === 0) { descStatus = 'warning'; descText = t('descRecWarnMissing'); } else if (descLength < DESC_MIN_LENGTH) { descStatus = 'warning'; descText = t('descRecWarnShort', {len: descLength, min: DESC_MIN_LENGTH, max: DESC_RECOMMENDED_MAX_LENGTH}); } else if (descLength > DESC_RECOMMENDED_MAX_LENGTH) { descStatus = 'warning'; descText = t('descRecWarnLong', {len: descLength, min: DESC_MIN_LENGTH, max: DESC_RECOMMENDED_MAX_LENGTH}); } setStatus('desc-status-icon', 'desc-recommendation', descStatus, descText);
     let canonicalStatus = 'ok', canonicalText = t('canonicalRecOkMatch'); if (!data.canonical) { canonicalStatus = 'warning'; canonicalText = t('canonicalRecWarnMissing'); } else if (data.canonical !== data.url) { canonicalStatus = 'ok'; canonicalText = t('canonicalRecOkDiff', {url: safeText(data.canonical)}); } setStatus('canonical-status-icon', 'canonical-recommendation', canonicalStatus, canonicalText);
     let robotsStatus = 'ok', robotsText = t('robotsRecOk'); const robotsContent = data.robots?.toLowerCase() || ''; if (robotsContent.includes('noindex')) { robotsStatus = 'error'; robotsText = t('robotsRecErrorNoIndex'); if (robotsContent.includes('nofollow')) { robotsText += t('robotsRecWarnNoFollowAdd'); } } else if (robotsContent.includes('nofollow')) { robotsStatus = 'warning'; robotsText = t('robotsRecWarnNoFollow'); } else if (!data.robots) { robotsStatus = 'ok'; robotsText = t('robotsRecOkDefault'); } setStatus('robots-status-icon', 'robots-recommendation', robotsStatus, robotsText);
+    
+    // Viewport Meta Check
+    populateViewportCheck(data.viewport);
+    
+    // Favicon Detection
+    populateFaviconCheck(data.favicon);
+    
     const countsList = document.getElementById('heading-counts-list'); countsList.innerHTML = ''; let hasHeadings = false; if (data.headingCounts && Object.keys(data.headingCounts).length > 0) { for (let i = 1; i <= 6; i++) { const tagName = `H${i}`; const count = data.headingCounts[tagName] || 0; if (count > 0) hasHeadings = true; const li = document.createElement('li'); li.innerHTML = `<strong>${tagName}</strong> <span>${count}</span>`; countsList.appendChild(li); } } if (!hasHeadings) { const li = document.createElement('li'); li.style.gridColumn = '1 / -1'; li.style.textAlign = 'center'; li.style.background = 'none'; li.style.border = 'none'; li.textContent = translations[lang].hierarchyStatusNoHeadings || 'No headings (H1-H6) found.'; countsList.appendChild(li); }
     const h1Count = data.headingCounts?.H1 || 0; let h1Status = 'ok', h1Text = ''; const h1StatusEl = document.getElementById('h1-recommendation'); if (h1Count === 0) { h1Status = 'error'; h1Text = t('h1RecErrorMissing'); } else if (h1Count > 1) { h1Status = 'warning'; h1Text = t('h1RecWarnMultiple', {count: h1Count}); } else { h1Status = 'ok'; h1Text = t('h1RecOk'); } if (h1StatusEl) h1StatusEl.innerHTML = `<span class="status-icon ${h1Status}"></span> ${h1Text}`;
     const wordCountEl = document.getElementById('word-count'); const letterCountEl = document.getElementById('letter-count'); if (wordCountEl) wordCountEl.textContent = data.wordCount !== undefined ? data.wordCount.toLocaleString() : 'N/A'; if (letterCountEl) letterCountEl.textContent = data.letterCount !== undefined ? data.letterCount.toLocaleString() : 'N/A';
+    
+    // Keyword Density
+    populateKeywordDensity(data.keywordDensity);
+    
     const hreflangListDiv = document.getElementById('hreflang-list'); if (hreflangListDiv) { hreflangListDiv.innerHTML = ''; if (data.hreflangTags && data.hreflangTags.length > 0) { removeEmptyTableMessage(hreflangListDiv); const ul = document.createElement('ul'); data.hreflangTags.forEach(tag => { const li = document.createElement('li'); const safeLang = safeText(tag.lang); const safeHref = safeUrl(tag.href); const linkHtml = tag.href ? `<a href="${safeHref}" target="_blank" rel="noopener noreferrer" title="${safeText(tag.href)}">${safeText(tag.href)}</a>` : 'N/A'; li.innerHTML = `<strong>${safeLang}</strong> ${linkHtml}`; ul.appendChild(li); }); hreflangListDiv.appendChild(ul); } else { addEmptyTableMessage(hreflangListDiv, 'hreflangNoneFound'); } }
+}
+
+// SERP Preview with pixel-width truncation
+function populateSerpPreview(title, description, url, maxTitleLen, maxDescLen) {
+    const serpTitle = document.getElementById('serp-title');
+    const serpDesc = document.getElementById('serp-description');
+    const serpUrl = document.getElementById('serp-url');
+    const serpTitleLength = document.getElementById('serp-title-length');
+    const serpDescLength = document.getElementById('serp-desc-length');
+    
+    if (!serpTitle || !serpDesc || !serpUrl) return;
+    
+    // Format URL for display (show breadcrumb style)
+    let displayUrl = 'N/A';
+    try {
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/').filter(p => p);
+        displayUrl = urlObj.hostname;
+        if (pathParts.length > 0) {
+            displayUrl += ' › ' + pathParts.slice(0, 2).join(' › ');
+            if (pathParts.length > 2) displayUrl += ' › ...';
+        }
+    } catch (e) {
+        displayUrl = url || 'N/A';
+    }
+    serpUrl.textContent = displayUrl;
+    
+    // Title with truncation indicator
+    const titleLen = title?.length || 0;
+    serpTitle.textContent = title || t('serpNoTitle');
+    serpTitle.classList.toggle('truncated', titleLen > maxTitleLen);
+    
+    // Description
+    serpDesc.textContent = description || t('serpNoDescription');
+    
+    // Length indicators
+    const descLen = description?.length || 0;
+    const titleClass = titleLen === 0 ? 'over-limit' : (titleLen > maxTitleLen ? 'over-limit' : 'good');
+    const descClass = descLen === 0 ? 'over-limit' : (descLen > maxDescLen ? 'over-limit' : 'good');
+    
+    serpTitleLength.innerHTML = `${t('serpTitleLength')}: <span class="${titleClass}">${titleLen}/${maxTitleLen}</span>`;
+    serpDescLength.innerHTML = `${t('serpDescLength')}: <span class="${descClass}">${descLen}/${maxDescLen}</span>`;
+}
+
+// Duplicate Meta Warnings
+function populateDuplicateWarnings(duplicates) {
+    const container = document.getElementById('duplicate-warnings');
+    const list = document.getElementById('duplicate-warnings-list');
+    if (!container || !list) return;
+    
+    list.innerHTML = '';
+    let hasWarnings = false;
+    
+    if (duplicates) {
+        if (duplicates.title > 1) {
+            const li = document.createElement('li');
+            li.textContent = t('duplicateTitle', {count: duplicates.title});
+            list.appendChild(li);
+            hasWarnings = true;
+        }
+        if (duplicates.description > 1) {
+            const li = document.createElement('li');
+            li.textContent = t('duplicateDescription', {count: duplicates.description});
+            list.appendChild(li);
+            hasWarnings = true;
+        }
+        if (duplicates.canonical > 1) {
+            const li = document.createElement('li');
+            li.textContent = t('duplicateCanonical', {count: duplicates.canonical});
+            list.appendChild(li);
+            hasWarnings = true;
+        }
+        if (duplicates.viewport > 1) {
+            const li = document.createElement('li');
+            li.textContent = t('duplicateViewport', {count: duplicates.viewport});
+            list.appendChild(li);
+            hasWarnings = true;
+        }
+    }
+    
+    container.classList.toggle('hidden', !hasWarnings);
+}
+
+// Viewport Meta Check
+function populateViewportCheck(viewport) {
+    const viewportEl = document.getElementById('viewport-meta');
+    const iconEl = document.getElementById('viewport-status-icon');
+    const recEl = document.getElementById('viewport-recommendation');
+    
+    if (!viewportEl || !iconEl || !recEl) return;
+    
+    viewportEl.textContent = viewport || 'N/A';
+    
+    let status = 'ok';
+    let text = '';
+    
+    if (!viewport) {
+        status = 'error';
+        text = t('viewportMissing');
+    } else {
+        const vpLower = viewport.toLowerCase();
+        const hasWidth = vpLower.includes('width=');
+        const hasInitialScale = vpLower.includes('initial-scale=');
+        
+        if (hasWidth && vpLower.includes('width=device-width')) {
+            if (hasInitialScale) {
+                status = 'ok';
+                text = t('viewportOk');
+            } else {
+                status = 'warning';
+                text = t('viewportNoScale');
+            }
+        } else if (hasWidth) {
+            status = 'warning';
+            text = t('viewportFixedWidth');
+        } else {
+            status = 'warning';
+            text = t('viewportIncomplete');
+        }
+    }
+    
+    iconEl.className = `status-icon ${status}`;
+    recEl.innerHTML = text;
+}
+
+// Favicon Detection
+function populateFaviconCheck(favicons) {
+    const statusEl = document.getElementById('favicon-status');
+    const iconEl = document.getElementById('favicon-status-icon');
+    const recEl = document.getElementById('favicon-recommendation');
+    
+    if (!statusEl || !iconEl || !recEl) return;
+    
+    let status = 'ok';
+    let statusText = '';
+    let recText = '';
+    
+    if (!favicons || favicons.length === 0) {
+        status = 'error';
+        statusText = t('faviconNone');
+        recText = t('faviconMissing');
+    } else {
+        const hasAppleTouch = favicons.some(f => f.rel && f.rel.includes('apple-touch-icon'));
+        const hasRegular = favicons.some(f => f.rel && (f.rel === 'icon' || f.rel === 'shortcut icon'));
+        const isDefault = favicons.length === 1 && favicons[0].isDefault;
+        
+        if (isDefault) {
+            status = 'warning';
+            statusText = t('faviconDefault');
+            recText = t('faviconDefaultRec');
+        } else if (hasRegular && hasAppleTouch) {
+            status = 'ok';
+            statusText = t('faviconFound', {count: favicons.length});
+            recText = t('faviconOk');
+        } else if (hasRegular) {
+            status = 'ok';
+            statusText = t('faviconFound', {count: favicons.length});
+            recText = t('faviconNoApple');
+        } else if (hasAppleTouch) {
+            status = 'warning';
+            statusText = t('faviconAppleOnly');
+            recText = t('faviconNeedsRegular');
+        } else {
+            status = 'ok';
+            statusText = t('faviconFound', {count: favicons.length});
+            recText = t('faviconOk');
+        }
+    }
+    
+    statusEl.textContent = statusText;
+    iconEl.className = `status-icon ${status}`;
+    recEl.innerHTML = recText;
+}
+
+// Keyword Density Display
+function populateKeywordDensity(keywords) {
+    const container = document.getElementById('keyword-density-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (!keywords || keywords.length === 0) {
+        container.innerHTML = `<p class="keyword-density-empty">${t('keywordDensityEmpty')}</p>`;
+        return;
+    }
+    
+    keywords.slice(0, 15).forEach(kw => {
+        const item = document.createElement('div');
+        item.className = 'keyword-item';
+        item.innerHTML = `
+            <span class="keyword-word" title="${safeText(kw.word)}">${safeText(kw.word)}</span>
+            <span class="keyword-stats">
+                <span class="keyword-count">${kw.count}</span>
+                <span class="keyword-density">${kw.density}%</span>
+            </span>
+        `;
+        container.appendChild(item);
+    });
 }
 function buildHierarchyListWithIndicators(headings, issuesFound) {
     if (!headings || headings.length === 0) return ''; let html = '<ul>'; headings.forEach(heading => { const safeHeadingText = safeText(heading.text); let indicatorHtml = ''; if (heading.isOutOfOrder) { indicatorHtml = `<span class="out-of-order-indicator">${translations[currentLang].hierarchySkippedLevel || 'Skipped Level'}</span>`; issuesFound.skippedLevel = true; } html += `<li class="clickable-item" data-tag-name="${heading.tagName}" data-element-index="${heading.elementIndex}"><strong>H${heading.level}:</strong> ${safeHeadingText} ${indicatorHtml}`; if (heading.children && heading.children.length > 0) { html += buildHierarchyListWithIndicators(heading.children, issuesFound); } html += '</li>'; }); html += '</ul>'; return html;
